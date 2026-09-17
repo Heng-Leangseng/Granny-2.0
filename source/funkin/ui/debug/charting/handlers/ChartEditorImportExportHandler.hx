@@ -255,34 +255,85 @@ class ChartEditorImportExportHandler
   {
     var output:Array<String> = [];
 
-    // TODO: Combine with code in FNFCUtil.hx
-
     // Read the ZIP/.FNFC file, and create a map of entries.
     var fileEntries:Array<haxe.zip.Entry> = FileUtil.readZIPFromBytes(bytes);
+    if (fileEntries == null)
+    {
+      trace("Error: Failed to read ZIP entries from bytes.");
+      return null;
+    }
+
     var mappedFileEntries:Map<String, haxe.zip.Entry> = FileUtil.mapZIPEntriesByName(fileEntries);
-    var manifestString:String = mappedFileEntries.get('manifest.json')?.data?.toString() ?? throw 'Could not locate manifest.';
-    var manifest:ChartManifestData = ChartManifestData.deserialize(manifestString) ?? throw 'Could not read manifest.';
+
+    var manifestString:Null<String> = mappedFileEntries.get('manifest.json')?.data?.toString();
+    if (manifestString == null)
+    {
+      trace("Error: Could not locate manifest.json in FNFC archive.");
+      return null;
+    }
+
+    var manifest:Null<ChartManifestData> = ChartManifestData.deserialize(manifestString);
+    if (manifest == null)
+    {
+      trace("Error: Could not read or parse manifest.");
+      return null;
+    }
 
     var baseMetadataPath:String = manifest.getMetadataFileName();
-    var baseMetadataString:String = mappedFileEntries.get(baseMetadataPath)?.data?.toString() ?? throw 'Could not locate metadata (default).';
-    var baseMetadataVersion:SemverVersion = VersionUtil.getVersionFromJSON(baseMetadataString) ?? throw 'Could not read metadata version (default).';
-    var baseMetadata:SongMetadata = SongRegistry.instance.parseEntryMetadataRawWithMigration(baseMetadataString, baseMetadataPath,
-      baseMetadataVersion) ?? throw 'Could not read metadata (default).';
+    var baseMetadataString:Null<String> = mappedFileEntries.get(baseMetadataPath)?.data?.toString();
+    if (baseMetadataString == null)
+    {
+      trace('Error: Could not locate metadata file at $baseMetadataPath');
+      return null;
+    }
+
+    var baseMetadataVersion:Null<SemverVersion> = VersionUtil.getVersionFromJSON(baseMetadataString);
+    if (baseMetadataVersion == null)
+    {
+      trace("Error: Could not read metadata version.");
+      return null;
+    }
+
+    var baseMetadata:Null<SongMetadata> = SongRegistry.instance.parseEntryMetadataRawWithMigration(baseMetadataString, baseMetadataPath, baseMetadataVersion);
+    if (baseMetadata == null)
+    {
+      trace("Error: Could not parse base metadata.");
+      return null;
+    }
 
     var songMetadatas:Map<String, SongMetadata> = [];
     songMetadatas.set(Constants.DEFAULT_VARIATION, baseMetadata);
 
     var baseChartDataPath:String = manifest.getChartDataFileName();
-    var baseChartDataString:String = mappedFileEntries.get(baseChartDataPath)?.data?.toString() ?? throw 'Could not locate chart data (default).';
-    var baseChartDataVersion:SemverVersion = VersionUtil.getVersionFromJSON(baseChartDataString) ?? throw 'Could not read chart data version (default).';
-    var baseChartData:SongChartData = SongRegistry.instance.parseEntryChartDataRawWithMigration(baseChartDataString, baseChartDataPath,
-      baseChartDataVersion) ?? throw 'Could not read chart data (default).';
+    var baseChartDataString:Null<String> = mappedFileEntries.get(baseChartDataPath)?.data?.toString();
+    if (baseChartDataString == null)
+    {
+      trace('Error: Could not locate chart data file at $baseChartDataPath');
+      return null;
+    }
+
+    var baseChartDataVersion:Null<SemverVersion> = VersionUtil.getVersionFromJSON(baseChartDataString);
+    if (baseChartDataVersion == null)
+    {
+      trace("Error: Could not read chart data version.");
+      return null;
+    }
+
+    var baseChartData:Null<SongChartData> = SongRegistry.instance.parseEntryChartDataRawWithMigration(
+      baseChartDataString,
+      baseChartDataPath,
+      baseChartDataVersion
+    );
+    if (baseChartData == null)
+    {
+      trace("Error: Could not parse base chart data.");
+      return null;
+    }
 
     var songChartDatas:Map<String, SongChartData> = [];
     songChartDatas.set(Constants.DEFAULT_VARIATION, baseChartData);
 
-    var variationList:Array<String> = baseMetadata.playData.songVariations;
-
+    var variationList:Array<String> = baseMetadata.playData?.songVariations ?? [];
     for (variation in variationList)
     {
       var variMetadataPath:String = manifest.getMetadataFileName(variation);
