@@ -27,6 +27,7 @@ import flixel.text.FlxText;
 import flixel.util.FlxColor;
 import flixel.math.FlxMath;
 import flixel.tweens.FlxEase;
+import flixel.tweens.FlxTween;
 import flixel.group.FlxSpriteGroup.FlxTypedSpriteGroup;
 
 /**
@@ -503,6 +504,7 @@ class OffsetMenu extends Page<OptionsState.OptionsMenuPageName>
   override function update(elapsed:Float):Void
   {
     super.update(elapsed);
+    if (FlxG.sound.music == null || !FlxG.sound.music.exists) return;
     localConductor.update(localConductor.songPosition + elapsed * 1000, false);
 
     var b:Float = localConductor.currentBeatTime;
@@ -944,7 +946,15 @@ class OffsetMenu extends Page<OptionsState.OptionsMenuPageName>
   override public function destroy()
   {
     MenuTypedList.pauseInput = false;
+    inputPressQueue = [];
+    inputReleaseQueue = [];
     exitCalibration(true);
+    if (OptionsState.instance != null && OptionsState.instance.drumsBG != null)
+    {
+      OptionsState.instance.drumsBG.fadeTween?.cancel();
+      OptionsState.instance.drumsBG.stop();
+    }
+    FlxTween.globalManager.clear();
     super.destroy();
   }
 }
